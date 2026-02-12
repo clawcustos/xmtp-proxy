@@ -53,13 +53,21 @@ function getAdminSigner() {
 
 async function getClient() {
   if (adminClient) return adminClient;
-  console.log('[XMTP] Initializing admin client...');
-  adminClient = await Client.create(getAdminSigner(), {
-    env: 'production',
-    appVersion: 'claws/1.0.0',
-  });
-  console.log('[XMTP] Admin client ready');
-  return adminClient;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      console.log(`[XMTP] Initializing admin client (attempt ${attempt})...`);
+      adminClient = await Client.create(getAdminSigner(), {
+        env: 'production',
+        appVersion: 'claws/1.0.0',
+      });
+      console.log('[XMTP] Admin client ready');
+      return adminClient;
+    } catch (err) {
+      console.error(`[XMTP] Init attempt ${attempt} failed:`, err.message);
+      if (attempt < 3) await new Promise(r => setTimeout(r, 2000 * attempt));
+    }
+  }
+  throw new Error('Failed to initialize XMTP client after 3 attempts');
 }
 
 function ethId(address) {
@@ -226,12 +234,13 @@ app.post('/messages', async (req, res) => {
 });
 
 // --- Start ---
-// Pre-initialize client on startup
-getClient().then(() => {
-  app.listen(PORT, () => {
-    console.log(`[XMTP Proxy] Running on port ${PORT}`);
+// Start server immediately, lazy-init XMTP client on first request
+app.listen(PORT, () => {
+  console.log(`[XMTP Proxy] Running on port ${PORT}`);
+  // Try to pre-init client in background (non-blocking)
+  getClient().then(() => {
+    console.log('[XMTP Proxy] Client pre-initialized');
+  }).catch(err => {
+    console.warn('[XMTP Proxy] Pre-init failed, will retry on first request:', err.message);
   });
-}).catch(err => {
-  console.error('[XMTP Proxy] Failed to initialize:', err);
-  process.exit(1);
 });
