@@ -10,7 +10,7 @@ import { Client } from '@xmtp/node-sdk';
 import { privateKeyToAccount } from 'viem/accounts';
 import { toBytes } from 'viem';
 
-const PORT = process.env.XMTP_PROXY_PORT || 3847;
+const PORT = process.env.PORT || process.env.XMTP_PROXY_PORT || 3847;
 const API_SECRET = process.env.XMTP_PROXY_SECRET || 'changeme';
 const ADMIN_KEY = process.env.XMTP_ADMIN_PRIVATE_KEY;
 
